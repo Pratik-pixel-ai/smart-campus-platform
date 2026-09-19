@@ -1,0 +1,28 @@
+# Build output
+target/
+dist/
+build/
+*.jar
+*.war
+
+# Dependencies
+node_modules/
+
+# Environment - never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Logs and OS files
+*.log
+logs/
+.DS_Store
+Thumbs.db
