@@ -16,6 +16,7 @@ export default function Register() {
   const navigate = useNavigate();
 
   const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -35,7 +36,8 @@ export default function Register() {
     departmentApi
       .publicList()
       .then(({ data }) => setDepartments(data))
-      .catch(() => setError('Could not load departments. Is the backend running?'));
+      .catch(() => setError('Could not load departments. Is the backend running?'))
+      .finally(() => setDepartmentsLoading(false));
   }, []);
 
   const change = (event) => setForm({ ...form, [event.target.name]: event.target.value });
@@ -110,7 +112,14 @@ export default function Register() {
               name="departmentId"
               value={form.departmentId}
               onChange={change}
-              placeholder="Select a department"
+              placeholder={
+                departmentsLoading
+                  ? 'Loading departments…'
+                  : departments.length === 0
+                    ? 'No departments available'
+                    : 'Select a department'
+              }
+              disabled={departmentsLoading || departments.length === 0}
               required
               options={departments.map((department) => ({
                 value: department.id,
