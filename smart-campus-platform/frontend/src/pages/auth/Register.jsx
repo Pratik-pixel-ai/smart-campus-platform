@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { School } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -17,6 +17,7 @@ export default function Register() {
 
   const [departments, setDepartments] = useState([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -32,13 +33,27 @@ export default function Register() {
     designation: 'Assistant Professor',
   });
 
-  useEffect(() => {
+  const loadDepartments = useCallback(() => {
+    setDepartmentsLoading(true);
+    setDepartmentsError('');
     departmentApi
       .publicList()
-      .then(({ data }) => setDepartments(data))
-      .catch(() => setError('Could not load departments. Is the backend running?'))
+      .then(({ data }) => {
+        setDepartments(data);
+        if (data.length === 0) {
+          setDepartmentsError('The server has no departments yet. Ask an administrator to add one.');
+        }
+      })
+      .catch((err) => {
+        setDepartments([]);
+        setDepartmentsError(errorMessage(err, 'Could not load departments'));
+      })
       .finally(() => setDepartmentsLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadDepartments();
+  }, [loadDepartments]);
 
   const change = (event) => setForm({ ...form, [event.target.name]: event.target.value });
   const isStudent = form.role === ROLES.STUDENT;
@@ -46,6 +61,11 @@ export default function Register() {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+    // A disabled <select> is skipped by the browser's own "required" check, so guard here.
+    if (!form.departmentId) {
+      setError(departmentsError || 'Select a department');
+      return;
+    }
     setLoading(true);
     try {
       const payload = {
@@ -155,6 +175,15 @@ export default function Register() {
               </>
             )}
           </div>
+
+          {departmentsError && !departmentsLoading && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <span>{departmentsError}</span>
+              <button type="button" onClick={loadDepartments} className="font-medium underline">
+                Retry
+              </button>
+            </div>
+          )}
 
           <Button type="submit" loading={loading} className="w-full">
             Create account

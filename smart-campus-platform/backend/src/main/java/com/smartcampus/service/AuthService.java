@@ -41,50 +41,67 @@ public class AuthService {
         if (request.role() == Role.ROLE_ADMIN) {
             throw new BadRequestException("Administrator accounts cannot be self-registered");
         }
-        if (userRepository.existsByEmail(request.email())) {
-            throw new DuplicateResourceException("An account already exists for " + request.email());
+
+        // Normalise once and use the same value for the duplicate check and the insert.
+        // (Previously the check used the raw email but the insert used the lower-cased one,
+        // so "Foo@x.com" passed the check and then hit the unique constraint as a 500.)
+        String email = request.email().trim().toLowerCase();
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateResourceException("An account already exists for " + email);
         }
 
         Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Department", request.departmentId()));
+                .orElseThrow(() -> new BadRequestException("Select a valid department"));
+
+        // Validate the role-specific fields BEFORE anything is written.
+        boolean isStudent = request.role() == Role.ROLE_STUDENT;
+        String rollNumber = null;
+        String employeeCode = null;
+        if (isStudent) {
+            rollNumber = request.rollNumber() == null ? "" : request.rollNumber().trim();
+            if (rollNumber.isEmpty()
+                    || request.semester() == null
+                    || request.division() == null || request.division().isBlank()) {
+                throw new BadRequestException("Roll number, semester and division are required for students");
+            }
+            if (studentRepository.existsByRollNumber(rollNumber)) {
+                throw new DuplicateResourceException("Roll number " + rollNumber + " is already registered");
+            }
+        } else {
+            employeeCode = request.employeeCode() == null ? "" : request.employeeCode().trim();
+            if (employeeCode.isEmpty()) {
+                throw new BadRequestException("Employee code is required for faculty");
+            }
+            if (facultyRepository.existsByEmployeeCode(employeeCode)) {
+                throw new DuplicateResourceException("Employee code " + employeeCode + " is already registered");
+            }
+        }
 
         User user = userRepository.save(User.builder()
-                .fullName(request.fullName())
-                .email(request.email().toLowerCase())
+                .fullName(request.fullName().trim())
+                .email(email)
                 .password(passwordEncoder.encode(request.password()))
                 .role(request.role())
                 .active(true)
                 .build());
 
         Long profileId;
-        if (request.role() == Role.ROLE_STUDENT) {
-            if (request.rollNumber() == null || request.rollNumber().isBlank()
-                    || request.semester() == null || request.division() == null || request.division().isBlank()) {
-                throw new BadRequestException("Roll number, semester and division are required for students");
-            }
-            if (studentRepository.existsByRollNumber(request.rollNumber())) {
-                throw new DuplicateResourceException("Roll number " + request.rollNumber() + " is already registered");
-            }
+        if (isStudent) {
             Student student = studentRepository.save(Student.builder()
                     .user(user)
-                    .rollNumber(request.rollNumber())
+                    .rollNumber(rollNumber)
                     .department(department)
                     .semester(request.semester())
-                    .division(request.division().toUpperCase())
+                    .division(request.division().trim().toUpperCase())
                     .build());
             profileId = student.getId();
         } else {
-            if (request.employeeCode() == null || request.employeeCode().isBlank()) {
-                throw new BadRequestException("Employee code is required for faculty");
-            }
-            if (facultyRepository.existsByEmployeeCode(request.employeeCode())) {
-                throw new DuplicateResourceException("Employee code " + request.employeeCode() + " is already registered");
-            }
             Faculty faculty = facultyRepository.save(Faculty.builder()
                     .user(user)
-                    .employeeCode(request.employeeCode())
+                    .employeeCode(employeeCode)
                     .department(department)
-                    .designation(request.designation() == null ? "Assistant Professor" : request.designation())
+                    .designation(request.designation() == null || request.designation().isBlank()
+                            ? "Assistant Professor" : request.designation().trim())
                     .build());
             profileId = faculty.getId();
         }

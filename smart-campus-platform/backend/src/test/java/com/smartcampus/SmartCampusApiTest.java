@@ -119,6 +119,39 @@ class SmartCampusApiTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void publicDepartmentListIsAvailableWithoutSigningIn() throws Exception {
+        // The registration form loads this before anyone has a token.
+        String body = mockMvc.perform(get("/api/departments/public"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(objectMapper.readTree(body).size() >= 1, "registration needs at least one department");
+    }
+
+    @Test
+    void studentCanRegisterAndDuplicateEmailIsRejectedRegardlessOfCase() throws Exception {
+        String departments = mockMvc.perform(get("/api/departments/public"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long departmentId = objectMapper.readTree(departments).get(0).get("id").asLong();
+
+        String payload = registrationJson("New.Student@Example.com", "REG-001", departmentId);
+        mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isCreated());
+
+        // Same address, different case: must be a clean 409, not a database error.
+        String duplicate = registrationJson("NEW.STUDENT@example.com", "REG-002", departmentId);
+        mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(duplicate))
+                .andExpect(status().isConflict());
+    }
+
+    private static String registrationJson(String email, String rollNumber, long departmentId) {
+        return """
+                {"fullName":"Test Student","email":"%s","password":"Password@123","role":"ROLE_STUDENT",
+                 "departmentId":%d,"rollNumber":"%s","semester":3,"division":"b"}
+                """.formatted(email, departmentId, rollNumber);
+    }
+
     private String login(String email) throws Exception {
         String body = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

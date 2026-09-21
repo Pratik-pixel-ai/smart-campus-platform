@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -41,5 +42,21 @@ class PostgresSearchTest {
         }
         mvc.perform(get("/api/students").param("semester", "7"))
                 .andExpect(status().isOk());
+    }
+
+    @Test void registrationWorksOnPostgres() throws Exception {
+        // The public department list feeds the registration dropdown.
+        mvc.perform(get("/api/departments/public")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").exists());
+
+        String payload = "{\"fullName\":\"Pg Student\",\"email\":\"Pg.Student@Example.com\","
+                + "\"password\":\"Password@123\",\"role\":\"ROLE_STUDENT\",\"departmentId\":1,"
+                + "\"rollNumber\":\"PG-001\",\"semester\":7,\"division\":\"A\"}";
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content(payload.replace("Pg.Student@Example.com", "PG.STUDENT@example.com")
+                                .replace("PG-001", "PG-002")))
+                .andExpect(status().isConflict());
     }
 }

@@ -1,3 +1,42 @@
+# Registration fix (latest)
+
+## What was wrong
+- `DataSeeder` created departments only when the `users` table was empty. A database that already
+  had accounts but no departments showed **"No departments available"** on the register form forever.
+- `AuthService.register` checked for a duplicate email using the address as typed, but saved it
+  lower-cased, so `Foo@x.com` passed the check and then failed on the unique constraint as a
+  generic 500. It also created the user row before validating roll number / employee code.
+- The register form let a disabled, empty department select submit `departmentId: 0`.
+- Any response without a server message was shown as the same vague text ("Could not create the
+  account"), which hid whether the backend was down, returning 5xx, or rejecting the input.
+- No test ever called `/api/auth/register` or `/api/departments/public`, so the earlier
+  "17 tests pass" result did not cover registration at all.
+
+## What changed
+- `DataSeeder`: creates the default departments whenever none exist; find-or-create in the seed.
+- `AuthService.register`: one normalised (trimmed, lower-case) email for check and insert; role
+  fields validated before writing; invalid department is a clear 400.
+- `GlobalExceptionHandler`: constraint violations -> 409, malformed body/invalid enum -> 400.
+- `api.js` / `Register.jsx`: unreachable server and 5xx are reported as such; department load
+  failures show the real reason with a Retry button; submit is blocked until a department is chosen.
+- New tests: public department list, registration + case-insensitive duplicate email (H2 suite,
+  runs on every `mvn test`) and the same registration flow against PostgreSQL (opt-in suite).
+- Removed a stray nested copy of the project and a zip from `frontend/src/pages/auth/`.
+
+## Verification status of THIS change
+NOT executed. The environment used to prepare it had no Maven, PostgreSQL or network. Java and JSX
+were syntax-checked only. Run `mvn test` (and the PostgreSQL command below) and `npm run build`
+before relying on it.
+
+## If the register form still fails
+1. `curl -i http://localhost:8080/api/departments/public`
+   - connection refused -> backend is not running; read its console for the startup error.
+   - `[]` -> restart the backend once (it now creates default departments), or add one as admin.
+   - 500 -> send the stack trace from the backend console.
+2. Docker users: rebuild, otherwise the old image is served: `docker compose up --build`.
+
+---
+
 # Updated source release
 
 This archive packages the existing patched working tree, not a fresh upstream checkout.

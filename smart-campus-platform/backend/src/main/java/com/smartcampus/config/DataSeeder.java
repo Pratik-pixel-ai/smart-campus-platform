@@ -55,16 +55,23 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        // Registration is impossible without at least one department (the form's dropdown is
+        // loaded from /api/departments/public). The "users exist" check below would otherwise
+        // skip department creation on a database that already has accounts but no departments.
+        if (departmentRepository.count() == 0) {
+            log.info("No departments found - creating the default departments.");
+            findOrCreateDepartment("Information Technology", "IT", "Dr. Vilas S. Gaikwad");
+            findOrCreateDepartment("Computer Engineering", "CS", "Dr. Anita Rao");
+        }
+
         if (userRepository.count() > 0) {
             log.info("Demo data already present, skipping seeding.");
             return;
         }
         log.info("Seeding demo data...");
 
-        Department it = departmentRepository.save(Department.builder()
-                .name("Information Technology").code("IT").hodName("Dr. Vilas S. Gaikwad").build());
-        Department cs = departmentRepository.save(Department.builder()
-                .name("Computer Engineering").code("CS").hodName("Dr. Anita Rao").build());
+        Department it = findOrCreateDepartment("Information Technology", "IT", "Dr. Vilas S. Gaikwad");
+        Department cs = findOrCreateDepartment("Computer Engineering", "CS", "Dr. Anita Rao");
 
         User adminUser = createUser("Campus Administrator", "admin@smartcampus.com", Role.ROLE_ADMIN);
 
@@ -115,6 +122,11 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    private Department findOrCreateDepartment(String name, String code, String hodName) {
+        return departmentRepository.findByCode(code).orElseGet(() -> departmentRepository.save(
+                Department.builder().name(name).code(code).hodName(hodName).build()));
+    }
 
     private User createUser(String fullName, String email, Role role) {
         return userRepository.save(User.builder()
