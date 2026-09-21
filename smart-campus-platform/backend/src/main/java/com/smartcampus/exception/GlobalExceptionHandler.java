@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -78,6 +79,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "The request body is missing or malformed", request, null);
+    }
+
+    /** Unknown URL (e.g. someone opens http://localhost:8080/ in a browser): a 404, not a logged 500. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Nothing exists at " + request.getRequestURI(), request, null);
     }
 
     @ExceptionHandler(Exception.class)
