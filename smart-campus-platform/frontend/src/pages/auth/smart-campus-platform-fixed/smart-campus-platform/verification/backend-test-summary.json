@@ -1,0 +1,39 @@
+{
+  "source": "Saved Maven Surefire reports from the earlier run; not rerun during packaging",
+  "suites": [
+    {
+      "suite": "com.smartcampus.PostgresSearchTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.smartcampus.SmartCampusApiTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.smartcampus.service.AttendanceSummaryTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.smartcampus.util.GradeCalculatorTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 17,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}
